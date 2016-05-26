@@ -1,4 +1,4 @@
-# si4735
+# Si4735
 Arduino library for the (now obsolete) Si4735 FM/AM/SW/LW radio receiver.  This is a git fork of [Michael Kennedy's](michael.joseph.kennedy.1970 [_a_t_] gmail [dot] com) [fork](https://sourceforge.net/projects/arduino-si4735/files/), which is based off of previous work:
 
 * Ryan Owens, https://www.sparkfun.com/products/10342
