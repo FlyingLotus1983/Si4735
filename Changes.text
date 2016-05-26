@@ -1,0 +1,94 @@
+Release 4:
+• All chips with a "D60" suffix have a bug in FM receive mode which causes noise in the audio output.  Library automatically fixes this bug by setting "hidden" property with setProperty(0xFF00, 0).  See "Si47xx Programming Guide," rev 0.8, Appendix B "Si4704/05/3x-B20/-C40/-D60 Compatibility Checklist," page 317.
+• Chip revision info from GET_REV command stored in radio.revision structure.
+• Added frequencyUp(), frequencyDown(), frequencyUpAndWait(), and frequencyDownAndWait() to step radio's tuned frequency.  Added support for these methods in "Si4735_VT220" example program.
+• Library now remembers the radio's current tuned frequency.  (Needed by frequencyUp() and frequencyDown().)  Added currentFrequency() to return current tuned frequency.
+• Added setBandTop(), setBandBottom(), setSpacing(), getBandTop(), getBandBottom(), getSpacing() to manually set and retrieve the band's top, bottom, and spacing.
+• Upgraded README and RDS documents to LyX and PDF.
+• README document: Many small edits made to improve content, especially for level shifting.  Changed open drain level shifter from discontinued chip to commonly available 74HC266.  Changed schematic drawing from ASCII artwork to real picture.  Added 74LVC244 and 74AHCT125.
+• begin() now takes a second argument to program the bus.  For SPI it specifies the clock divider.  For I2C, the address.
+• I2C address now defaults to SEN == HIGH for compatibility with SparkFun's Si4707 breakout board.
+• Interrupt defaults to pin 7 on Leonardo when I2C selected.
+• Specify that no external crystal is attached to the radio by calling setMode(FM, MODE_OPT_NO_XTAL).
+• Added Weather Band constants to Si4735.h.
+• Added "stereo blend" output to "Si4735_VT220" example program.
+• Fixed AM band for Regions 1 and 3.  Other minor tweaking of bands.
+
+Release 3:
+• Now checks for empty RDS date-time fields in Group 4A packets.
+
+Releases 1 and 2:
+• Initial public release.
+
+-------------------------------------------------------------------------------
+
+Major changes from Jon Carrier's version of the library.  Except in a few small ways documented below, this library is backwards compatible with Jon Carrier's and Ryan Owens' libraries:
+
+• Now works with Mega 2560.  (Tested on Mega 2560 Rev 2.)  Jon Carrier's version triggers the Mega 2560's infamous "!!!" bug.  Briefly, when you attempt to upload a program containing the ASCII string "!!!" to the Mega 2560, the boot loader malfunctions and the upload will hang with timeout messages.  Jon Carrier's library contains the message string "!!!ALERT!!!".  Changed this to "ALERT! ALERT!" as recommended by RBDS (NRSC-4-B:2011).
+
+Note: All Mega 2560s made as of this writing (early 2013) seem to have this bug.  This includes every Rev 1 and Rev 2 ever made and all current Rev 3.  See:
+
+   http://code.google.com/p/arduino/issues/detail?id=392
+
+• begin() initializes the radio but does not set the radio's receive mode.  To set the mode after begin(), call setMode().  This change breaks all existing code using all known previous versions of the library.  This change was needed to permit localization and setting the initial volume level before selecting a receive mode.
+
+Also, both begin() and setMode() now take options to control how they do their job.  When combined into one method, begin() would need to: do basic initialization based on given options, set the region and locale, set the initial volume level and mute status, and select the receive mode with mode specific options and audio output options.  This is just too complicated.
+
+It should also be mentioned that with most class libraries, begin() is expected to only setup things that should be done once.  Settings that can be changed multiple times (receive mode, volume, and locale when you are traveling) should normally be done outside of begin().
+
+• Added support for SparkFun Si4735 Breakout Board.  (Also supports SparkFun Si4735 Arduino Shield.)  See README and Si4735.h files for info on how to configure.
+
+• Supports I2C or SPI.  (See README file.)
+
+• Library now supports Mega, Mega 2560, Leonardo, and Due Arduinos.  Note: You must still adapt the Si4735 shield to match the Mega, Mega 2560, Leonardo, and Due Arduino's different pin out for the SPI bus.  See README file.
+
+• When Ryan Owens setup the Si4735 library, he incorrectly defined the command buffer, response buffer, and status byte as "char" variables.  By default, char variables are signed.  This makes using these variables much harder when doing shifts or other complex bit manipulation.  Changed these to "byte" variables which are unsigned.
+
+Note: This change will break applications if they call getResponse().  Just change your response buffer from a 'char' array to a 'byte' array.
+
+• getResponse() now requires a length argument.  This breaks old code that calls getResponse().
+
+• In the original Ryan Owens library tuneFrequency(), seekUp(), and seekDown() always returned a boolean value of true.  They now return nothing (void).  Note: This change also exists in Jon Carrier's version.
+
+• All previous versions used sprintf() to build a command packet to send to the radio chip.  By switching to static arrays or building commands without sprintf(), we save about 1 KiB of flash ROM, assuming your application does not use sprintf().
+
+• volumeUp() and volumeDown() now take an optional argument to specify the amount to increase or decrease volume.
+
+• Arrays for translating PTY codes to text messages were located in SRAM, copied from flash ROM.  Changed so they stay in flash ROM.  Saved about 900 bytes of SRAM.  Note: If too much data is stored in SRAM you will get crashes and weird behavior when the data segment and stack collide and overwrite each other.
+
+• Date conversion code was based on formulas given in Annex G of IEC-62106.  These formulas require floating point and stop working in 2100 AD because they incorrectly think it is a leap year.  New code only uses integer arithmetic and handles dates up to 2400 AD.  Previous code did not localize dates.  New code does.  Saved about 1 KiB of flash ROM by switching from floating point to integer arithmetic.
+
+• Code is now heavily commented.  This should make it easy for others to understand and customize the library.
+
+• Added new RADIO_OFF mode.
+
+• Improved localization, especially FM band.  Adjusts radio's receiver based on locale and ITU region.
+
+• RDS code now intelligently determines RDS or RBDS mode, based in part on the current locale.  The radio can now handle a mix of RDS and RBDS stations as are found at the US boarders with Canada and Mexico.
+
+• We now support generating call letters for all RBDS stations (when possible) with getCallSign().  Previous code only supported most stations.
+
+• Updated PTY code to support new 2011 version of RBDS:  Three new PTY codes were added.
+
+• Simplified RDS usage.  Previous design required copying RDS info into a large structure.  By making the class' RDS variables public (shared) we save over 100 bytes of SRAM and some flash ROM and no longer waste time copying data.  (Note: This change breaks compatibility with Jon Carrier's library.)
+
+• Library code now waits for CTS (Clear To Send) by using the correct delay before getting a long response from the last command or sending the next command.  Previous library code was filled with random guesses on how long to delay after each command.  Unnecessary delays are now removed.
+
+• Library now uses interrupts.  For RDS data, the application can choose to either poll with getRDS() or wait for its interrupt with checkRDS().  For RSQ data, the application can choose to either poll with getRSQ() or wait for its interrupt with checkRSQ().  For tuning and seeking, either poll with checkFrequency() or wait for the STC interrupt with waitSTC() or tuneFrequencyAndWait().
+
+Note: Interrupts are used to avoid polling the radio chip.  However, to simplify the design for library users, we currently do not use interrupt handlers.  Instead, the processor's interrupt flag is polled and commands are sent to the radio only after the interrupt has been received.
+
+Warning: Excessive bus activity seems to introduce noise into the radio's analog circuits, including the audio output.  Also, the SparkFun shield uses the Si4735's internal oscillator.  The data sheet warns against having any serial bus traffic (including other chips sharing the serial bus) while the Si4735 is tuning or seeking and using the internal oscillator.  Therefore, it is recommended that interrupts are used instead of polling whenever possible.
+
+• Library now permits checking for when tuning and seek operations complete by checking for the STC (Seek/Tune Complete) interrupt.  No polling of the radio chip is required.  New methods checkFrequency(), waitSTC(), and tuneFrequencyAndWait() either check for or wait for the STC interrupt signal.
+
+• You can now cancel a seek operation by calling cancelSeek().
+
+• Old version of sendCommand() for a hexadecimal string did not check for buffer overflow.  Fixed.
+
+• Other new methods:
+
+getInterrupts() and currentInterrupts() permit manually checking interrupts.
+
+Also new: toggleMute(), getMute(), and clearInterrupts().
+
